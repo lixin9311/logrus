@@ -36,6 +36,9 @@ type TextFormatter struct {
 	// Set to true to bypass checking for a TTY before outputting colors.
 	ForceColors bool
 
+	// Print Uncolored.
+	ForceUnColored bool
+
 	// Force disabling colors.
 	DisableColors bool
 
@@ -77,7 +80,9 @@ func (f *TextFormatter) Format(entry *Entry) ([]byte, error) {
 	if timestampFormat == "" {
 		timestampFormat = DefaultTimestampFormat
 	}
-	if isColored {
+	if f.ForceUnColored {
+		f.printUnColored(b, entry, keys, timestampFormat)
+	} else if isColored {
 		f.printColored(b, entry, keys, timestampFormat)
 	} else {
 		if !f.DisableTimestamp {
@@ -92,6 +97,20 @@ func (f *TextFormatter) Format(entry *Entry) ([]byte, error) {
 
 	b.WriteByte('\n')
 	return b.Bytes(), nil
+}
+
+func (f *TextFormatter) printUnColored(b *bytes.Buffer, entry *Entry, keys []string, timestampFormat string) {
+	levelText := strings.ToUpper(entry.Level.String())[0:4]
+
+	if !f.FullTimestamp {
+		fmt.Fprintf(b, "%s[%04d] %-44s ", levelText, miniTS(), entry.Message)
+	} else {
+		fmt.Fprintf(b, "%s[%s] %-44s ", levelText, entry.Time.Format(timestampFormat), entry.Message)
+	}
+	for _, k := range keys {
+		v := entry.Data[k]
+		fmt.Fprintf(b, " %s=%+v", k, v)
+	}
 }
 
 func (f *TextFormatter) printColored(b *bytes.Buffer, entry *Entry, keys []string, timestampFormat string) {
